@@ -83,4 +83,11 @@ LogSuccess "Server config patched"
 
 LogInfo "Server is starting..."
 
-exec xvfb-run --auto-servernum wine "$SERVER_EXEC" -log -STDOUT
+LOG_FILE="$SERVER_FILES/R5/Saved/Logs/R5.log"
+
+xvfb-run --auto-servernum wine "$SERVER_EXEC" -log &
+wine_pid=$!
+
+tail -F "$LOG_FILE" 2>/dev/null &
+
+wait $wine_pid
