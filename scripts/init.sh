@@ -35,7 +35,12 @@ term_handler() {
 trap 'term_handler' SIGTERM
 
 # Start the server as steam user
-su - steam -c "cd /home/steam/server && ./start.sh" &
+su - steam -c "cd /home/steam/server && \
+    INVITE_CODE='${INVITE_CODE}' \
+    SERVER_NAME='${SERVER_NAME}' \
+    SERVER_PASSWORD='${SERVER_PASSWORD}' \
+    MAX_PLAYERS='${MAX_PLAYERS:-10}' \
+    ./start.sh" &
 
 killpid="$!"
 wait "$killpid"
