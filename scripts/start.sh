@@ -62,7 +62,7 @@ fi
 
 LogAction "Patching server config"
 tr -d '\r' < "$SERVER_DESC" | jq \
-    --arg proxy      "0.0.0.0" \
+    --arg proxy      "${P2P_PROXY_ADDRESS:-127.0.0.1}" \
     --arg invite     "${INVITE_CODE}" \
     --arg name       "${SERVER_NAME}" \
     --arg password   "${SERVER_PASSWORD:-}" \

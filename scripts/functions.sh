@@ -61,7 +61,7 @@ shutdown_server() {
   LogAction "Attempting graceful server shutdown"
 
   local pid
-  pid=$(pidof wine-preloader)
+  pid=$(pgrep -x "wine-preloader|wine64-preloader" | head -1)
 
   if [ -n "$pid" ]; then
     kill -SIGTERM "$pid"

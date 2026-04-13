@@ -28,11 +28,12 @@ chown -R steam:steam /home/steam/server-files
 term_handler() {
     if ! shutdown_server; then
         local pid
-        pid=$(pidof wine-preloader)
+        pid=$(pgrep -x "wine-preloader|wine64-preloader" | head -1)
         if [ -n "$pid" ]; then
             kill -SIGTERM "$pid"
         fi
     fi
+    sleep 2
     tail --pid="$killpid" -f 2>/dev/null
 }
 
@@ -44,6 +45,7 @@ su - steam -c "cd /home/steam/server && \
     SERVER_NAME='${SERVER_NAME}' \
     SERVER_PASSWORD='${SERVER_PASSWORD}' \
     MAX_PLAYERS='${MAX_PLAYERS:-10}' \
+    P2P_PROXY_ADDRESS='${P2P_PROXY_ADDRESS:-}' \
     ./start.sh" &
 
 killpid="$!"
