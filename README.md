@@ -5,29 +5,25 @@
 [![Discord](https://img.shields.io/discord/798321161082896395?style=for-the-badge&label=Discord&labelColor=5865F2&color=6aa84f)](https://discord.gg/indifferentbroccoli)
 [![Docker Pulls](https://img.shields.io/docker/pulls/indifferentbroccoli/windrose-server-docker?style=for-the-badge&color=6aa84f)](https://hub.docker.com/r/indifferentbroccoli/windrose-server-docker)
 
-Game server hosting
+Game server hosting · Fast RAM · High-speed internet · Eat lag for breakfast
 
-Fast RAM, high-speed internet
-
-Eat lag for breakfast
-
-[Try our windrose server hosting free for 2 days!](https://indifferentbroccoli.com/windrose-server-hosting)
+[Try our Windrose server hosting free for 2 days!](https://indifferentbroccoli.com/windrose-server-hosting)
 
 ## Windrose Dedicated Server Docker
 
-A Docker container for running a Windrose dedicated server using DepotDownloader.
+A Docker container for running a Windrose dedicated server. The server binary is Windows-only and runs via Wine.
 
 ## Server Requirements
 
-|      | Minimum  | Recommended |
-|------|----------|-------------|
-| CPU  | 2 cores  | 4+ cores    |
-| RAM  | 8GB      | 16GB        |
-| Storage | 35GB  | 50GB        |
+| | 2 Players | 4 Players | 10 Players |
+|--|-----------|-----------|------------|
+| CPU | 2 cores @ 3.2 GHz | 2 cores @ 3.2 GHz | 2 cores @ 3.2 GHz |
+| RAM | 8 GB | 12 GB | 16 GB |
+| Storage | 35 GB SSD | 35 GB SSD | 35 GB SSD |
 
 ## How to use
 
-Copy the `.env.example` file to a new file called `.env`. Then use either `docker compose` or `docker run`.
+Copy the `.env.example` file to `.env`, fill in your values, then use either `docker compose` or `docker run`.
 
 ### Docker Compose
 
@@ -43,8 +39,6 @@ services:
     volumes:
       - ./server-files:/home/steam/server-files
 ```
-
-Then run:
 
 ```shell
 docker compose up -d
@@ -66,24 +60,37 @@ docker run -d \
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| PUID | 1000 | User ID for file permissions |
-| PGID | 1000 | Group ID for file permissions |
-| UPDATE_ON_START | true | Set to false to skip downloading and validating server files on startup |
+| `PUID` | `1000` | User ID to run the server process as |
+| `PGID` | `1000` | Group ID to run the server process as |
+| `UPDATE_ON_START` | `true` | Download and validate server files on every startup. Set to `false` to skip |
+| `STEAM_USER` | | Steam account username (required to download the dedicated server) |
+| `STEAM_PASS` | | Steam account password |
+| `INVITE_CODE` | | Invite code players use to connect. Min 6 characters, `0-9 a-z A-Z`, case sensitive |
+| `SERVER_NAME` | | Display name for your server |
+| `SERVER_PASSWORD` | | Leave empty for a public server |
+| `MAX_PLAYERS` | `10` | Maximum number of simultaneous players |
 
 ## Server Configuration
 
-On first start the server automatically creates two configuration files inside `server-files/`:
+On first start the server automatically generates two configuration files inside `server-files/`. The container handles this automatically — it starts the server once to generate the files, applies your settings, then starts normally.
 
-- `R5/ServerDescription.json` — server identity, invite code, password, max players, and P2P proxy address.
-- `R5/Saved/SaveProfiles/Default/RocksDB/<version>/Worlds/<world-id>/WorldDescription.json` — per-world settings (difficulty, mob multipliers, etc.).
+### Connecting
 
-Start and stop the server once to let these files generate, then edit them as needed. All changes require a server restart.
+Players connect via invite code. The code is set by `INVITE_CODE` in your `.env` and is also visible in `server-files/R5/ServerDescription.json` under `InviteCode`. Share it with players who join via **Play → Connect to Server** in-game.
 
-### Connecting to the server
+### ServerDescription.json
 
-Players connect via an invite code shown in the server console at startup, or found in `server-files/R5/ServerDescription.json` under `InviteCode`. Share this code with players who can then join via **Play → Connect to Server** in-game.
+Located at `server-files/R5/ServerDescription.json`. This file can only be edited while the server is stopped.
 
-### ServerDescription.json example
+| Field | Description |
+|-------|-------------|
+| `InviteCode` | Invite code for players to find your server. Min 6 chars, `0-9 a-z A-Z`, case sensitive |
+| `IsPasswordProtected` | `true` or `false` |
+| `Password` | Server password |
+| `ServerName` | Display name of the server |
+| `WorldIslandId` | ID of the world to load — must match the folder name of a `WorldDescription.json` |
+| `MaxPlayerCount` | Maximum simultaneous players |
+| `P2pProxyAddress` | IP for listening sockets. Use `0.0.0.0` in Docker to accept connections on all interfaces |
 
 ```json
 {
@@ -93,7 +100,7 @@ Players connect via an invite code shown in the server console at startup, or fo
         "InviteCode": "myfriends",
         "IsPasswordProtected": false,
         "Password": "",
-        "Note": "My Windrose Server",
+        "ServerName": "My Windrose Server",
         "WorldIslandId": "...",
         "MaxPlayerCount": 10,
         "P2pProxyAddress": "0.0.0.0"
@@ -101,12 +108,84 @@ Players connect via an invite code shown in the server console at startup, or fo
 }
 ```
 
-> **Note:** Set `P2pProxyAddress` to `0.0.0.0` so the server accepts connections on all network interfaces when running in Docker.
+### WorldDescription.json
+
+Located at `server-files/R5/Saved/SaveProfiles/Default/RocksDB/<version>/Worlds/<world-id>/WorldDescription.json`. One file per world. This file can only be edited while the server is stopped.
+
+| Field | Description |
+|-------|-------------|
+| `WorldPresetType` | Difficulty preset: `"Easy"`, `"Medium"`, `"Hard"`, or `"Custom"`. If any `WorldSettings` values are present the server forces this to `"Custom"` |
+| `WorldName` | Name of the world |
+| `WorldSettings` | Custom parameters — leave all sections empty to use a preset |
+
+#### WorldSettings parameters
+
+> Only takes effect when `WorldPresetType` is `"Custom"`. Leave `WorldSettings` empty to use a preset.
+
+**Bool parameters**
+
+| Parameter key | Default | Description |
+|---------------|---------|-------------|
+| `WDS.Parameter.Coop.SharedQuests` | `true` | When a player completes a co-op quest it auto-completes for all players who have it active |
+| `WDS.Parameter.EasyExplore` | `false` | Hides map markers for points of interest, making exploration harder. Called "Immersive Exploration" in-game |
+
+**Float parameters**
+
+| Parameter key | Default | Range | Description |
+|---------------|---------|-------|-------------|
+| `WDS.Parameter.MobHealthMultiplier` | `1.0` | 0.2 – 5.0 | Enemy health multiplier |
+| `WDS.Parameter.MobDamageMultiplier` | `1.0` | 0.2 – 5.0 | Enemy damage multiplier |
+| `WDS.Parameter.ShipsHealthMultiplier` | `1.0` | 0.4 – 5.0 | Enemy ship health multiplier |
+| `WDS.Parameter.ShipsDamageMultiplier` | `1.0` | 0.2 – 2.5 | Enemy ship damage multiplier |
+| `WDS.Parameter.BoardingDifficultyMultiplier` | `1.0` | 0.2 – 5.0 | How many enemy sailors must be defeated to win a boarding action |
+| `WDS.Parameter.Coop.StatsCorrectionModifier` | `1.0` | 0.0 – 2.0 | Adjusts enemy health and posture loss based on player count |
+| `WDS.Parameter.Coop.ShipStatsCorrectionModifier` | `0.0` | 0.0 – 2.0 | Adjusts enemy ship health based on player count |
+
+**Tag parameters**
+
+| Parameter key | Default | Options | Description |
+|---------------|---------|---------|-------------|
+| `WDS.Parameter.CombatDifficulty` | `WDS.Parameter.CombatDifficulty.Normal` | `Easy` / `Normal` / `Hard` | Boss encounter difficulty and general enemy aggression |
+
+**Example `WorldDescription.json`:**
+
+```json
+{
+    "Version": 1,
+    "WorldDescription": {
+        "IslandId": "...",
+        "WorldName": "My World",
+        "WorldPresetType": "Custom",
+        "WorldSettings": {
+            "BoolParameters": {
+                "{\"TagName\": \"WDS.Parameter.Coop.SharedQuests\"}": true,
+                "{\"TagName\": \"WDS.Parameter.EasyExplore\"}": false
+            },
+            "FloatParameters": {
+                "{\"TagName\": \"WDS.Parameter.MobHealthMultiplier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.MobDamageMultiplier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.ShipsHealthMultiplier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.ShipsDamageMultiplier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.BoardingDifficultyMultiplier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.Coop.StatsCorrectionModifier\"}": 1,
+                "{\"TagName\": \"WDS.Parameter.Coop.ShipStatsCorrectionModifier\"}": 0
+            },
+            "TagParameters": {
+                "{\"TagName\": \"WDS.Parameter.CombatDifficulty\"}": {
+                    "TagName": "WDS.Parameter.CombatDifficulty.Normal"
+                }
+            }
+        }
+    }
+}
+```
 
 ## Volumes
 
-- `/home/steam/server-files` — Server installation files, saves, and configuration
+| Path | Description |
+|------|-------------|
+| `/home/steam/server-files` | Server installation files, world saves, and configuration |
 
 ## About
 
-This is a Dockerized version of the Windrose dedicated server.
+This is a Dockerized Windrose dedicated server maintained by [indifferent broccoli](https://indifferentbroccoli.com). We offer [managed Windrose server hosting](https://indifferentbroccoli.com/windrose-server-hosting) if you'd rather not self-host.
