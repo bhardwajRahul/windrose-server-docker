@@ -28,7 +28,21 @@ if [ -z "$WINDROSE_PLUS_VERSION" ]; then
     exit 1
 fi
 
+if [ "$WINDROSE_PLUS_VERSION" = "latest" ]; then
+    WINDROSE_PLUS_VERSION=$(curl -fsSL "https://api.github.com/repos/humangenome/WindrosePlus/releases/latest" | jq -r '.tag_name')
+fi
+
 MARKER="$SERVER_FILES/.windroseplus_version"
+
+# Apply RCON password on every start (outside version-marker guard so password
+# changes take effect even when the version hasn't changed).
+CFG="$SERVER_FILES/windrose_plus.json"
+if [ -n "${WINDROSE_PLUS_RCON_PASSWORD:-}" ] && [ -f "$CFG" ]; then
+    tmp=$(mktemp)
+    jq --arg pw "$WINDROSE_PLUS_RCON_PASSWORD" '.rcon.password = $pw' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
+    chown steam:steam "$CFG" 2>/dev/null || true
+fi
+
 if [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$WINDROSE_PLUS_VERSION" ]; then
     exit 0
 fi
@@ -132,20 +146,16 @@ SHIM
     chmod +x "$HEAL_EXE"
 fi
 
-# --- Seed windrose_plus.json on first run ---
-CFG="$SERVER_FILES/windrose_plus.json"
-if [ ! -f "$CFG" ]; then
-    PW="${WINDROSE_PLUS_RCON_PASSWORD:-}"
-    if [ -z "$PW" ]; then
-        PW=$(head -c 18 /dev/urandom | base64 | tr -d '+/=' | head -c 24)
-        echo "Windrose+: generated random RCON password: $PW" >&2
-    fi
-    jq -n --arg pw "$PW" '{
-        "multipliers": {},
-        "rcon": { "enabled": true, "password": $pw }
-    }' > "$CFG"
-    chown steam:steam "$CFG" 2>/dev/null || true
+# Seed or patch windrose_plus.json — runs after extraction so we always
+# overwrite whatever the zip may have shipped (e.g. "changeme").
+PW="${WINDROSE_PLUS_RCON_PASSWORD:-$(head -c 18 /dev/urandom | base64 | tr -d '+/=' | head -c 24)}"
+if [ -f "$CFG" ]; then
+    tmp=$(mktemp)
+    jq --arg pw "$PW" '.rcon.password = $pw' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
+else
+    jq -n --arg pw "$PW" '{"multipliers":{},"rcon":{"enabled":true,"password":$pw}}' > "$CFG"
 fi
+chown steam:steam "$CFG" 2>/dev/null || true
 
 echo "$WINDROSE_PLUS_VERSION" > "$MARKER"
 chown steam:steam "$MARKER" 2>/dev/null || true
