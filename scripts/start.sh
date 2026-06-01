@@ -23,6 +23,26 @@ export WINEPREFIX="${WINEPREFIX:-$HOME/.wine}"
 export WINEARCH="${WINEARCH:-win64}"
 export WINEDLLOVERRIDES="mscoree,mshtml=;dwmapi=n,b"
 
+run_world_description_updater() {
+    [ "${RUN_WORLD_DESCRIPTION_UPDATER:-false}" = "true" ] || return 0
+
+    local world_id world_desc
+    local updater_exe="$SERVER_FILES/R5/R5WorldDescriptionUpdater.exe"
+
+    world_id=$(jq -r '.ServerDescription_Persistent.WorldIslandId // empty' "$SERVER_FILES/R5/ServerDescription.json" 2>/dev/null)
+    [ -n "$world_id" ] || { LogWarn "WorldIslandId missing in ServerDescription.json"; return 0; }
+
+    world_desc=$(find \
+        "$SERVER_FILES/R5/Saved/SaveProfiles/Default" \
+        -type f -path "*/Worlds/${world_id}/WorldDescription.json" 2>/dev/null | head -n 1)
+    [ -n "$world_desc" ] || { LogWarn "No WorldDescription.json found for WorldIslandId=$world_id"; return 0; }
+
+    LogAction "Running R5WorldDescriptionUpdater for world $world_id"
+    xvfb-run --auto-servernum wine "$updater_exe" "${world_desc#$SERVER_FILES/}" \
+        && LogSuccess "R5WorldDescriptionUpdater completed" \
+        || LogWarn "R5WorldDescriptionUpdater failed; continuing startup"
+}
+
 if [ "${WINE_VERBOSE:-false}" = "true" ]; then
     export WINEDEBUG="${WINEDEBUG:-+all}"
 else
@@ -92,6 +112,8 @@ if [ "${GENERATE_SETTINGS:-true}" != "false" ]; then
         ' > "${SERVER_DESC}.tmp" && mv "${SERVER_DESC}.tmp" "$SERVER_DESC"
     LogSuccess "Server config patched"
 fi
+
+run_world_description_updater
 
 if [ "${WINDROSE_PLUS_ENABLED:-false}" = "true" ]; then
     LogAction "Rebuilding Windrose+ override PAK"
