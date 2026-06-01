@@ -98,8 +98,8 @@ run_world_description_updater() {
     -type f -path "*/Worlds/${world_id}/WorldDescription.json" 2>/dev/null | head -n 1)
   [ -n "$world_desc" ] || { LogWarn "No WorldDescription.json found for WorldIslandId=$world_id"; return 0; }
 
-  updater_exe=$(find "$SERVER_FILES/R5" -type f -name "R5WorldDescriptionUpdater.exe" 2>/dev/null | head -n 1)
-  [ -n "$updater_exe" ] || { LogWarn "R5WorldDescriptionUpdater.exe not found"; return 0; }
+  updater_exe="$SERVER_FILES/R5WorldDescriptionUpdater.exe"
+  [ -f "$updater_exe" ] || { LogWarn "R5WorldDescriptionUpdater.exe not found at $updater_exe"; return 0; }
 
   LogAction "Running R5WorldDescriptionUpdater for world $world_id"
   xvfb-run --auto-servernum wine "$updater_exe" "${world_desc#$SERVER_FILES/}" \
